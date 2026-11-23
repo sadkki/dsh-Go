@@ -9,7 +9,6 @@ import '../../state/account_state.dart';
 import '../../state/onboarding_state.dart';
 import '../account/account_widgets.dart';
 import '../common/progress_halo.dart';
-import '../providers/provider_form_page.dart';
 import '../theme/app_icons.dart';
 import '../theme/theme.dart';
 import 'api_key_page.dart';
@@ -157,15 +156,6 @@ class _ConnectPageState extends ConsumerState<ConnectPage> {
     widget.onDone();
   }
 
-  /// The add-provider form over this step; the engine is already starting.
-  Future<void> _otherProvider() async {
-    ref.read(accountProvider.notifier).dismissFailure();
-    final id = await Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => const ProviderFormPage()));
-    if (id == null || !mounted) return;
-    await ref.read(onboardingPrefsProvider.notifier).setKeySkipped(true);
-    widget.onDone();
-  }
-
   @override
   Widget build(BuildContext context) {
     ref.listen(accountProvider.select((s) => s.signedIn), (prev, signedIn) {
@@ -193,7 +183,6 @@ class _ConnectPageState extends ConsumerState<ConnectPage> {
           ref.read(accountProvider.notifier).dismissFailure();
           setState(() => _keyEntry = true);
         },
-        onOther: _otherProvider,
         onSkip: _skip,
       );
     }
@@ -225,14 +214,12 @@ class _Choose extends StatelessWidget {
     required this.state,
     required this.onSignIn,
     required this.onApiKey,
-    required this.onOther,
     required this.onSkip,
   });
 
   final AccountState state;
   final VoidCallback onSignIn;
   final VoidCallback onApiKey;
-  final VoidCallback onOther;
   final VoidCallback onSkip;
 
   @override
@@ -270,18 +257,12 @@ class _Choose extends StatelessWidget {
         ],
         OutlinedButton(onPressed: onApiKey, child: Text(l10n.shellUseApiKey)),
         const SizedBox(height: 6),
-        // Two equal halves: the quieter ways on.
-        Row(
-          children: [
-            for (final (label, onTap) in [(l10n.shellOtherProviders, onOther), (l10n.shellSetUpLater, onSkip)])
-              Expanded(
-                child: TextButton(
-                  onPressed: onTap,
-                  style: TextButton.styleFrom(foregroundColor: scheme.onSurfaceVariant),
-                  child: Text(label),
-                ),
-              ),
-          ],
+        // Locked build: no "其他渠道" button. Adding a provider from
+        // onboarding is removed; only "稍后设置" remains.
+        TextButton(
+          onPressed: onSkip,
+          style: TextButton.styleFrom(foregroundColor: scheme.onSurfaceVariant),
+          child: Text(l10n.shellSetUpLater),
         ),
       ],
     );

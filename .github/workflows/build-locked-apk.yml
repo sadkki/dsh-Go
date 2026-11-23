@@ -1,0 +1,52 @@
+# Locked build: build the arm64 release APK for this fork.
+# Run it manually from Actions > Build locked APK > Run workflow.
+# It does NOT publish a release and does NOT create a PR.
+# The APK is uploaded as a workflow artifact; download it from the run page.
+name: Build locked APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: 3.47.7
+  NODE_VERSION: 24.22.1
+
+jobs:
+  build-apk:
+    name: Build arm64 APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Check the locked-provider change compiles
+        working-directory: app
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter analyze --no-pub
+      - name: Build arm64 APK (no companion pack, no star prompt)
+        run: |
+          bash tooling/setup-toolchain.sh
+          source tooling/env.sh
+          bash runtime/build-runtime.sh arm64-v8a
+          DSH_BETA_TOKEN_FILE= bash tooling/build-apk.sh -f arm64 --no-companion --no-star --keep-daemon
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-go-locked-arm64
+          path: app/build/app/outputs/flutter-apk/app-arm64-release.apk
+          if-no-files-found: error

@@ -43,7 +43,6 @@ import '../phone/system_actions_page.dart';
 import '../plugins/plugins_screen.dart';
 import '../plugins/seats/plugin_settings_tiles.dart';
 import '../plugins/seats/seat_probe.dart';
-import '../providers/providers_page.dart';
 import '../remote/host_status.dart';
 import '../remote/remote_screen.dart';
 import '../shell/brand_mark.dart';
@@ -147,12 +146,10 @@ class SettingsScreen extends ConsumerWidget {
         SettingsSection(
           title: l10n.hubGroupAi,
           children: [
-            SettingsTile(
-              icon: AppIcons.providers,
-              tint: SettingsHues.ai,
-              spot: SettingsIndex.entry(SettingsPageId.models),
-              onTap: () => _push(context, const ProvidersPage()),
-            ),
+            // Locked build: the "模型渠道" settings entry is hidden, so
+            // recipients cannot reach the add / edit provider pages from
+            // Settings. ProvidersPage itself is still reachable from code
+            // paths that need it, but its add/edit UI is removed.
             SettingsTile(
               icon: AppIcons.permissions,
               tint: SettingsHues.ai,

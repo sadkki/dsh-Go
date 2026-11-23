@@ -23,9 +23,6 @@ import '../common/sheet_title_bar.dart';
 import '../common/smooth_size.dart';
 import '../common/read_list_status.dart';
 import '../common/ui_trace.dart';
-import '../onboarding/api_key_page.dart';
-import '../providers/provider_form_page.dart';
-import '../providers/providers_page.dart';
 import '../theme/app_icons.dart';
 import '../theme/theme.dart';
 
@@ -568,8 +565,7 @@ class _ModelSheetState extends ConsumerState<_ModelSheet> {
                   child: Text(l10n.commonSave),
                 ),
               ),
-            // 「管理模型 ›」: 设置 › 模型, over the sheet (back returns here).
-            if (picking) ...[const SizedBox(height: 12), const ManageModelsLink()],
+            // Locked build: no "管理模型" link to the providers page.
           ],
         ),
       ),
@@ -658,29 +654,6 @@ class _ModelSheetState extends ConsumerState<_ModelSheet> {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// 选择模型底部的「管理模型 ›」:居中的文字键,去 设置 › 模型。
-class ManageModelsLink extends StatelessWidget {
-  const ManageModelsLink({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Center(
-      child: TextButton(
-        onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ProvidersPage())),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(l10n.nearbyManageModels),
-            const SizedBox(width: 2),
-            const Icon(AppIcons.disclosure, size: 14),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -1045,24 +1018,15 @@ class _EmptyCatalog extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final failure = this.failure?.trim();
-    void push(Widget page) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
+    // Locked build: no "添加渠道" / "管理模型" entry. When the locked relay
+    // model is not listed, the key / provider must be fixed on the engine
+    // by the distributor; the app offers no way to add or change a model.
     if (!configured) {
       return EmptyView(
         padding: _emptyPadding,
         icon: AppIcons.apiKey,
         title: l10n.viewModelKeyRequired,
         message: l10n.viewModelProvidersHint,
-        action: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FilledButton(
-              onPressed: () => push(const ApiKeyPage(onboarding: false)),
-              child: Text(l10n.viewModelEnterKey),
-            ),
-            const SizedBox(height: 4),
-            TextButton(onPressed: () => push(const ProviderFormPage()), child: Text(l10n.viewModelAddProvider)),
-          ],
-        ),
       );
     }
     return EmptyView(
@@ -1070,13 +1034,6 @@ class _EmptyCatalog extends StatelessWidget {
       icon: AppIcons.noApiKey,
       title: l10n.viewModelNone,
       message: failure != null && failure.isNotEmpty ? failure : l10n.viewModelKeyHint,
-      // An empty picker has no selection to resume after provider management.
-      action: FilledButton(
-        onPressed: () =>
-            Navigator.of(context)
-                .pushReplacement<void, void>(MaterialPageRoute<void>(builder: (_) => const ProvidersPage())),
-        child: Text(l10n.viewModelManageProviders),
-      ),
     );
   }
 }

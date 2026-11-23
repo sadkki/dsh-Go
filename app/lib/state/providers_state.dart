@@ -9,6 +9,7 @@ import 'read_list_cache.dart';
 import 'read_list_identity.dart';
 import 'read_list_epoch.dart';
 import 'engine_error_text.dart';
+import 'locked_provider.dart';
 import 'models_state.dart';
 import 'provider_backend.dart';
 import 'settings_state.dart';
@@ -587,6 +588,12 @@ class ProviderActions {
   /// official page does; if only the key fails, the [ProviderFailure] carries
   /// the new id.
   Future<String> save(ProviderDraft draft, {CustomProvider? existing}) async {
+    // Locked build: no new providers can be added from the app, and the
+    // locked relay provider cannot be edited from the app. The provider
+    // must be created / keyed on the engine by the distributor.
+    if (existing == null || isLockedProvider(existing.id)) {
+      throw ProviderFailure('Locked build: providers cannot be added or changed in this app.');
+    }
     final backend = _backend;
     final before = _snapshot;
     _ref.read(readListCredentialEpochProvider.notifier).advance();
@@ -670,6 +677,9 @@ class ProviderActions {
   /// Removes the route and, when no other route shares it, the key it named
   /// (the official page does the same for keys it manages).
   Future<void> delete(CustomProvider provider) async {
+    if (isLockedProvider(provider.id)) {
+      throw ProviderFailure('Locked build: the locked provider cannot be deleted in this app.');
+    }
     final backend = _backend;
     final snapshot = _snapshot;
     _ref.read(readListCredentialEpochProvider.notifier).advance();

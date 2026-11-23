@@ -15,7 +15,6 @@ import '../../l10n/l10n.dart';
 import '../../state/engine_settings_state.dart';
 import '../../state/models_state.dart';
 import '../features/feature_kit.dart' show QuietSpinner;
-import '../providers/providers_page.dart' show openProviders;
 import '../theme/app_icons.dart';
 import '../theme/theme.dart';
 import 'field_row.dart';
@@ -219,11 +218,8 @@ class _SubagentSettingsPageState extends ConsumerState<SubagentSettingsPage> {
       sections.add(
         SchemaFormSection(
           children: [
-            EngineFieldRow(
-              title: l10n.engineSubagentNoModels,
-              value: l10n.engineSubagentConnectModel,
-              onTap: () => openProviders(context),
-            ),
+            // Locked build: no link to the providers page here.
+            EngineFieldRow(title: l10n.engineSubagentNoModels, value: l10n.engineSubagentConnectModel),
           ],
         ),
       );

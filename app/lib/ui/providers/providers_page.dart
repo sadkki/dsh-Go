@@ -22,22 +22,15 @@ import '../common/status_chip.dart';
 import '../features/feature_kit.dart';
 import '../features/feature_widgets.dart';
 import '../onboarding/api_key_page.dart' show maskApiKey;
-import '../settings/index/spots.dart';
 import '../shell/page_frame.dart';
 import '../theme/app_icons.dart';
 import '../theme/theme.dart';
-import 'new_chat_defaults_card.dart';
-import 'provider_detail_page.dart';
-import 'provider_form_page.dart';
 import 'provider_widgets.dart';
 import 'subscription_page.dart';
 import 'subscription_sheet.dart';
 
 class ProvidersPage extends ConsumerWidget {
   const ProvidersPage({super.key});
-
-  void _push(BuildContext context, Widget page) =>
-      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -67,7 +60,9 @@ class ProvidersPage extends ConsumerWidget {
           ? null
           : Text(summary),
       children: [
-        const NewChatDefaultsCard(),
+        // Locked build: the new-chat default is the locked relay model and
+        // is not editable here. The card that let users pick another
+        // default model is intentionally removed.
         _OfficialAccounts(openAi: official, openAiReady: officialReady),
         if (legacy.isNotEmpty) _SubscriptionAccounts(statuses: legacy),
         if (view.value?.supported == false)
@@ -77,7 +72,7 @@ class ProvidersPage extends ConsumerWidget {
             body: l10n.engineSettingsVersionRequired,
           )
         else if (view.value != null)
-          _CustomCard(cached: view.value, readOnly: true, onOpen: (_) {}, onAdd: () {})
+          _CustomCard(cached: view.value)
         else if (conn == null)
           FeatureMessage(
             icon: AppIcons.offline,
@@ -100,22 +95,10 @@ class ProvidersPage extends ConsumerWidget {
             body: l10n.engineSettingsVersionRequired,
           )
         else
-          _CustomCard(
-            snapshot: snapshot,
-            readOnly: view.readOnly,
-            onOpen: (id) {
-              if (!ref.read(providerListViewProvider).readOnly &&
-                  identical(ref.read(customProvidersProvider).value, snapshot)) {
-                _push(context, ProviderDetailPage(providerId: id));
-              }
-            },
-            onAdd: () {
-              if (!ref.read(providerListViewProvider).readOnly &&
-                  identical(ref.read(customProvidersProvider).value, snapshot)) {
-                _push(context, const ProviderFormPage());
-              }
-            },
-          ),
+          // Locked build: provider rows are read-only and there is no
+          // add-provider entry. Tapping a row must not open the detail /
+          // edit page.
+          _CustomCard(snapshot: snapshot),
       ],
     );
   }
@@ -334,13 +317,10 @@ class LoginCapsule extends StatelessWidget {
 }
 
 class _CustomCard extends StatelessWidget {
-  const _CustomCard({this.snapshot, this.cached, required this.onOpen, required this.onAdd, required this.readOnly});
+  const _CustomCard({this.snapshot, this.cached});
 
   final ProvidersSnapshot? snapshot;
   final CachedProviders? cached;
-  final bool readOnly;
-  final ValueChanged<String> onOpen;
-  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -358,7 +338,6 @@ class _CustomCard extends StatelessWidget {
               health: live.healthOf(p),
             ),
         ];
-    final writable = !readOnly && (live?.writable ?? false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -369,16 +348,10 @@ class _CustomCard extends StatelessWidget {
               FadeSlideIn(
                 key: ValueKey(p.id),
                 index: i,
-                child: _ProviderRow(provider: p, onTap: readOnly ? null : () => onOpen(p.id)),
+                child: _ProviderRow(provider: p, onTap: null),
               ),
-            ListPageRow(
-              icon: AppIcons.add,
-              iconColor: writable ? Theme.of(context).colorScheme.primary : null,
-              spot: Spots.addProvider,
-              subtitle: providers.isEmpty ? l10n.engineProvidersCompatibleHint : null,
-              chevron: false,
-              onTap: writable ? onAdd : null,
-            ),
+            // Locked build: no "添加渠道" row. The add-provider entry is
+            // intentionally removed.
           ],
         ),
         if (live != null && !live.writable) FeatureNote(l10n.engineProvidersReadOnly),
@@ -421,10 +394,6 @@ class _ProviderRow extends StatelessWidget {
     );
   }
 }
-
-/// For callers outside this page (the model sheet, onboarding).
-void openProviders(BuildContext context) =>
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ProvidersPage()));
 
 /// A remote engine's catalog lists DeepSeek models (account or API Key).
 bool catalogHasDeepSeek(ModelCatalog? catalog) =>

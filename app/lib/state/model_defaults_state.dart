@@ -1,6 +1,7 @@
 import 'package:dsh_client/dsh_client.dart';
 
 import 'engine_settings_state.dart';
+import 'locked_provider.dart';
 import 'models_state.dart';
 
 const defaultModelProviderField = FieldRef(defaultModelSettingsNs, ['provider']);
@@ -14,7 +15,13 @@ ModelSelection? defaultModelSelection(EngineSettings settings) {
   final model = settings.valueOf(defaultModelIdField);
   final effort = settings.valueOf(defaultModelEffortField);
   if (provider is! String || provider.isEmpty || model is! String || model.isEmpty) return null;
-  return ModelSelection(provider: provider, model: model, reasoningEffort: effort is String ? effort : null);
+  // Locked build: the relay model is the only default, whatever the engine
+  // stored before. The effort is kept when the engine stored one.
+  return ModelSelection(
+    provider: lockedProviderId,
+    model: lockedModelId,
+    reasoningEffort: effort is String ? effort : null,
+  );
 }
 
 bool supportsDefaultModelMode(EngineSettings settings) =>

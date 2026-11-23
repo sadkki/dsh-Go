@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/l10n.dart';
+import '../../state/locked_provider.dart';
 import '../../state/providers_state.dart';
 import '../common/app_dialog.dart';
 import '../common/expand_reveal.dart';
@@ -151,8 +152,10 @@ class _ProviderDetailPageState extends ConsumerState<ProviderDetailPage> {
     final view = ProviderHealthView.of(health);
     final keyStored = snapshot.keyStored(provider);
     final diagnostic = snapshot.diagnostics[provider.id];
-    final canEdit = provider.editable && snapshot.writable;
-    final canDelete = provider.removable && snapshot.writable && !_deleting;
+    // Locked build: the locked relay provider can never be edited or
+    // deleted from the app, even if the engine says it is editable.
+    final canEdit = !isLockedProvider(provider.id) && provider.editable && snapshot.writable;
+    final canDelete = !isLockedProvider(provider.id) && provider.removable && snapshot.writable && !_deleting;
     const gap = SizedBox(height: 24);
 
     return AppPage(

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'connection_state.dart';
 import 'hosts_state.dart';
+import 'locked_provider.dart';
 import 'read_list_cache.dart';
 import 'read_list_identity.dart';
 import 'settings_state.dart';
@@ -35,12 +36,55 @@ final modelCatalogProvider = FutureProvider<ModelCatalog?>((ref) async {
   });
   ref.onDispose(() => unawaited(sub.cancel()));
   final catalog = await conn.client.listModels();
+  // Locked build: only the relay model is offered. When the engine lists
+  // it, the catalog is narrowed to that one model and it becomes the
+  // default; when it is not listed (provider or key missing on the engine),
+  // return the catalog unchanged so the empty-state hint can explain why.
+  final locked = _lockedCatalog(catalog);
+  if (locked != null) {
+    if (ref.mounted) {
+      cache.stamp(locked, identity, conn.client);
+      cache.put(readListKey(identity, ReadListKind.models), locked, () => CachedModels(locked));
+    }
+    return locked;
+  }
   if (ref.mounted) {
     cache.stamp(catalog, identity, conn.client);
     cache.put(readListKey(identity, ReadListKind.models), catalog, () => CachedModels(catalog));
   }
   return catalog;
 });
+
+/// Narrow [catalog] to the locked relay model, or null when the engine does
+/// not list it. The effort is the engine's default for that model when it
+/// names one, else the starting effort from [startingEffort].
+ModelCatalog? _lockedCatalog(ModelCatalog catalog) {
+  final lockedGroups = [
+    for (final group in catalog.groups)
+      if (group.id == lockedProviderId)
+        ProviderGroup(
+          group.id,
+          group.name,
+          [for (final model in group.models) if (model.id == lockedModelId) model],
+        ),
+  ].where((group) => group.models.isNotEmpty).toList(growable: false);
+  if (lockedGroups.isEmpty) return null;
+  final model = lockedGroups.first.models.first;
+  final effort =
+      catalog.defaultSelection?.provider == lockedProviderId &&
+          catalog.defaultSelection?.model == lockedModelId
+      ? catalog.defaultSelection?.reasoningEffort
+      : startingEffort(model);
+  return ModelCatalog(
+    defaultSelection: ModelSelection(provider: lockedProviderId, model: lockedModelId, reasoningEffort: effort),
+    routableProviders: const [lockedProviderId],
+    groups: lockedGroups,
+    failures: [
+      for (final failure in catalog.failures)
+        if (failure.provider == lockedProviderId) failure,
+    ],
+  );
+}
 
 /// A stale catalog is for browsing only; model selection still needs the
 /// current provider's successful authoritative response.
