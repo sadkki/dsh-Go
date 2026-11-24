@@ -583,58 +583,42 @@ class ProviderActions {
     }
   }
 
-  /// Creates (no [existing]) or updates a provider on the active engine and
-  /// stores its key. The profile is written first, then the key, as the
-  /// official page does; if only the key fails, the [ProviderFailure] carries
-  /// the new id.
+  /// Updates an existing provider on the active engine and stores its key.
+  /// Locked build: creating a provider is removed (see the throws below);
+  /// only updating a non-locked existing provider is possible. The profile
+  /// is written first, then the key, as the official page does; if only the
+  /// key fails, the [ProviderFailure] carries the new id.
   Future<String> save(ProviderDraft draft, {CustomProvider? existing}) async {
     // Locked build: no new providers can be added from the app, and the
     // locked relay provider cannot be edited from the app. The provider
     // must be created / keyed on the engine by the distributor.
-    if (existing == null || isLockedProvider(existing.id)) {
-      throw ProviderFailure('Locked build: providers cannot be added or changed in this app.');
+    //
+    // The create branch is deleted outright instead of throwing inside
+    // it: an early `if (existing == null) throw` would make the original
+    // create branch below dead code, which `flutter analyze` rejects.
+    if (existing == null) {
+      throw ProviderFailure('Locked build: providers cannot be added in this app.');
+    }
+    if (isLockedProvider(existing.id)) {
+      throw ProviderFailure('Locked build: the locked provider cannot be changed in this app.');
     }
     final backend = _backend;
     final before = _snapshot;
     _ref.read(readListCredentialEpochProvider.notifier).advance();
     final name = draft.effectiveName;
-    final String id;
-    final String keyRef;
-    if (existing == null) {
-      // Read back first: the id must not land on a route someone just added.
-      final current = await backend.read();
-      id = newProviderId(
-        name: draft.name,
-        baseUrl: draft.baseUrl,
-        taken: {...?current?.profiles.map((p) => p.route), ...?before?.takenIds},
-      );
-      keyRef = deriveProviderKeyRef(id);
-      await backend.create(
-        ProviderProfile(
-          route: id,
-          displayName: name,
-          api: draft.api.wire,
-          baseUrl: draft.baseUrl,
-          apiKeyEnv: draft.apiKey.isEmpty ? null : keyRef,
-          models: draft.models,
-          headers: draft.headers ?? const {},
-        ),
-      );
-    } else {
-      id = existing.id;
-      keyRef = existing.keyRef;
-      await backend.update(
-        id,
-        displayName: name,
-        api: draft.api,
-        baseUrl: draft.baseUrl,
-        // A keyless route gets its reference once a key is typed.
-        apiKeyEnv: existing.apiKeyEnv == null && draft.apiKey.isNotEmpty ? keyRef : null,
-        models: draft.models,
-        headers: draft.headers,
-        expectedRevision: before?.revision,
-      );
-    }
+    final id = existing.id;
+    final keyRef = existing.keyRef;
+    await backend.update(
+      id,
+      displayName: name,
+      api: draft.api,
+      baseUrl: draft.baseUrl,
+      // A keyless route gets its reference once a key is typed.
+      apiKeyEnv: existing.apiKeyEnv == null && draft.apiKey.isNotEmpty ? keyRef : null,
+      models: draft.models,
+      headers: draft.headers,
+      expectedRevision: before?.revision,
+    );
     if (draft.apiKey.isNotEmpty) {
       try {
         await backend.storeKey(keyRef, draft.apiKey);
